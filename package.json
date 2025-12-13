@@ -1,0 +1,20 @@
+{
+  "name": "amplify-disable-unused-ops",
+  "version": "0.1.0",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "amplify-disable-unused-ops": "dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/cli.js"
+  },
+  "dependencies": {
+    "@types/node": "^25.0.1",
+    "ts-morph": "^27.0.2"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}
