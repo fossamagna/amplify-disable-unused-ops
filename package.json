@@ -8,13 +8,20 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "start": "node dist/cli.js"
+    "start": "node dist/cli.js",
+    "test": "vitest run --test-timeout 20000",
+    "test:watch": "vitest --test-timeout 20000"
   },
   "dependencies": {
     "@types/node": "^25.0.1",
     "ts-morph": "^27.0.2"
   },
   "devDependencies": {
-    "typescript": "^5.9.3"
+    "@aws-amplify/backend": "^1.19.0",
+    "@aws-amplify/backend-cli": "^1.8.1",
+    "@types/react": "^19.2.7",
+    "aws-amplify": "^6.15.9",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.15"
   }
 }
