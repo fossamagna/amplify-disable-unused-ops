@@ -13,6 +13,7 @@ interface ApplyOptions {
   usagePath: string;
   dryRun?: boolean;
   backup?: boolean;
+  onExisting?: "overwrite" | "skip" | "merge";
 }
 
 const QUERY_OPS: OperationName[] = ["get", "list"];
@@ -42,8 +43,41 @@ function buildDisableOperations(usedOps?: Set<OperationName>): string[] {
   return disable;
 }
 
+function extractExistingDisableOperations(init: Node): string[] | undefined {
+  const text = init.getText();
+  const match = text.match(/\.disableOperations\(\[([^\]]+)\]\)/);
+  if (!match) {
+    return undefined;
+  }
+  const opsString = match[1];
+  const ops = opsString
+    .split(",")
+    .map((s) => s.trim().replace(/^["'`]|["'`]$/g, ""))
+    .filter((s) => s.length > 0);
+  return ops;
+}
+
+function mergeDisableOperations(
+  existing: string[],
+  newOps: string[]
+): string[] {
+  const merged = new Set([...existing, ...newOps]);
+  return Array.from(merged);
+}
+
+function removeDisableOperations(init: Node): string {
+  const text = init.getText();
+  return text.replace(/\.disableOperations\(\[[^\]]+\]\)/, "");
+}
+
 export function applyDisableOperations(opts: ApplyOptions) {
-  const { resourcePath, usagePath, dryRun = false, backup = true } = opts;
+  const {
+    resourcePath,
+    usagePath,
+    dryRun = false,
+    backup = true,
+    onExisting = "skip",
+  } = opts;
   const usageJson: UsageMap = JSON.parse(fs.readFileSync(usagePath, "utf8"));
   const usageSet = new Map<string, Set<OperationName>>();
   for (const [m, ops] of Object.entries(usageJson)) {
@@ -98,10 +132,34 @@ export function applyDisableOperations(opts: ApplyOptions) {
     if (!isModelDefinitionExpression(init)) {
       continue;
     }
-    if (init.getText().includes(".disableOperations(")) {
-      console.warn("[warn] already has disableOperations:", name);
-      continue;
+
+    const hasExisting = init.getText().includes(".disableOperations(");
+    if (hasExisting) {
+      if (onExisting === "skip") {
+        console.warn("[skip] already has disableOperations:", name);
+        continue;
+      } else if (onExisting === "merge") {
+        const existing = extractExistingDisableOperations(init);
+        if (existing) {
+          const merged = mergeDisableOperations(existing, disableOps);
+          if (merged.length === 0) {
+            continue;
+          }
+          const textWithoutDisable = removeDisableOperations(init);
+          const mergedArg = "[" + merged.map((op) => `"${op}"`).join(",") + "]";
+          init.replaceWithText(textWithoutDisable + `.disableOperations(${mergedArg})`);
+          console.log(`[merge] merged disableOperations for ${name}: [${merged.join(", ")}]`);
+        }
+        continue;
+      } else if (onExisting === "overwrite") {
+        const textWithoutDisable = removeDisableOperations(init);
+        const disableArg = "[" + disableOps.map((op) => `"${op}"`).join(",") + "]";
+        init.replaceWithText(textWithoutDisable + `.disableOperations(${disableArg})`);
+        console.log(`[overwrite] replaced disableOperations for ${name}`);
+        continue;
+      }
     }
+
     const disableArg = "[" + disableOps.map((op) => `"${op}"`).join(",") + "]";
     init.replaceWithText(init.getText() + `.disableOperations(${disableArg})`);
   }

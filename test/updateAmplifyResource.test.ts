@@ -320,6 +320,212 @@ const schema = a.schema({
     });
   });
 
+  describe("onExisting option", () => {
+    it("should skip models that already have disableOperations when onExisting='skip' (default)", () => {
+      const resourceContent = `import { a } from "@aws-amplify/backend";
+
+const schema = a.schema({
+  Todo: a
+    .model({
+      content: a.string(),
+    })
+    .disableOperations(["mutations"]),
+});
+`;
+      const usageContent = JSON.stringify({
+        Todo: ["create"],
+      });
+
+      fs.writeFileSync(resourcePath, resourceContent, "utf8");
+      fs.writeFileSync(usagePath, usageContent, "utf8");
+
+      applyDisableOperations({
+        resourcePath,
+        usagePath,
+        dryRun: false,
+        backup: false,
+        onExisting: "skip",
+      });
+
+      const result = fs.readFileSync(resourcePath, "utf8");
+      // Should not change the existing disableOperations
+      expect((result.match(/disableOperations/g) || []).length).toBe(1);
+      expect(result).toContain('.disableOperations(["mutations"])');
+    });
+
+    it("should overwrite existing disableOperations when onExisting='overwrite'", () => {
+      const resourceContent = `import { a } from "@aws-amplify/backend";
+
+const schema = a.schema({
+  Todo: a
+    .model({
+      content: a.string(),
+    })
+    .disableOperations(["mutations"]),
+});
+`;
+      const usageContent = JSON.stringify({
+        Todo: ["create"],
+      });
+
+      fs.writeFileSync(resourcePath, resourceContent, "utf8");
+      fs.writeFileSync(usagePath, usageContent, "utf8");
+
+      applyDisableOperations({
+        resourcePath,
+        usagePath,
+        dryRun: false,
+        backup: false,
+        onExisting: "overwrite",
+      });
+
+      const result = fs.readFileSync(resourcePath, "utf8");
+      // Should replace mutations with queries,subscriptions (since create is used)
+      expect((result.match(/disableOperations/g) || []).length).toBe(1);
+      expect(result).not.toContain('.disableOperations(["mutations"])');
+      expect(result).toContain('.disableOperations(["queries","subscriptions"])');
+    });
+
+    it("should merge existing and new disableOperations when onExisting='merge'", () => {
+      const resourceContent = `import { a } from "@aws-amplify/backend";
+
+const schema = a.schema({
+  Todo: a
+    .model({
+      content: a.string(),
+    })
+    .disableOperations(["mutations"]),
+});
+`;
+      const usageContent = JSON.stringify({
+        Todo: ["get"],
+      });
+
+      fs.writeFileSync(resourcePath, resourceContent, "utf8");
+      fs.writeFileSync(usagePath, usageContent, "utf8");
+
+      applyDisableOperations({
+        resourcePath,
+        usagePath,
+        dryRun: false,
+        backup: false,
+        onExisting: "merge",
+      });
+
+      const result = fs.readFileSync(resourcePath, "utf8");
+      // Should merge mutations (existing) with mutations,subscriptions (new, since only get is used)
+      // Result should be mutations,subscriptions
+      expect((result.match(/disableOperations/g) || []).length).toBe(1);
+      expect(result).toContain('.disableOperations(["mutations","subscriptions"])');
+    });
+
+    it("should merge without duplicates", () => {
+      const resourceContent = `import { a } from "@aws-amplify/backend";
+
+const schema = a.schema({
+  Todo: a
+    .model({
+      content: a.string(),
+    })
+    .disableOperations(["queries","mutations"]),
+});
+`;
+      const usageContent = JSON.stringify({
+        Todo: ["onCreate"],
+      });
+
+      fs.writeFileSync(resourcePath, resourceContent, "utf8");
+      fs.writeFileSync(usagePath, usageContent, "utf8");
+
+      applyDisableOperations({
+        resourcePath,
+        usagePath,
+        dryRun: false,
+        backup: false,
+        onExisting: "merge",
+      });
+
+      const result = fs.readFileSync(resourcePath, "utf8");
+      // Should merge [queries,mutations] (existing) with [queries,mutations] (new, since only onCreate is used)
+      // Result should be queries,mutations (no duplicates)
+      expect((result.match(/disableOperations/g) || []).length).toBe(1);
+      expect(result).toContain('.disableOperations(["queries","mutations"])');
+    });
+
+    it("should handle merge with chained methods", () => {
+      const resourceContent = `import { a } from "@aws-amplify/backend";
+
+const schema = a.schema({
+  Todo: a
+    .model({
+      content: a.string(),
+    })
+    .authorization((allow) => [allow.publicApiKey()])
+    .disableOperations(["subscriptions"]),
+});
+`;
+      const usageContent = JSON.stringify({
+        Todo: ["get"],
+      });
+
+      fs.writeFileSync(resourcePath, resourceContent, "utf8");
+      fs.writeFileSync(usagePath, usageContent, "utf8");
+
+      applyDisableOperations({
+        resourcePath,
+        usagePath,
+        dryRun: false,
+        backup: false,
+        onExisting: "merge",
+      });
+
+      const result = fs.readFileSync(resourcePath, "utf8");
+      // Should merge subscriptions (existing) with mutations,subscriptions (new, since only get is used)
+      // Result should be mutations,subscriptions (order may vary due to Set)
+      expect(result).toContain(".authorization((allow) => [allow.publicApiKey()])");
+      expect(result).toMatch(/\.disableOperations\(\["(subscriptions","mutations|mutations","subscriptions)"\]\)/);
+    });
+
+    it("should handle overwrite with chained methods", () => {
+      const resourceContent = `import { a } from "@aws-amplify/backend";
+
+const schema = a.schema({
+  Post: a
+    .model({
+      title: a.string(),
+    })
+    .authorization((allow) => [allow.owner()])
+    .disableOperations(["queries"])
+    .secondaryIndexes((index) => [index("title")]),
+});
+`;
+      const usageContent = JSON.stringify({
+        Post: ["list"],
+      });
+
+      fs.writeFileSync(resourcePath, resourceContent, "utf8");
+      fs.writeFileSync(usagePath, usageContent, "utf8");
+
+      applyDisableOperations({
+        resourcePath,
+        usagePath,
+        dryRun: false,
+        backup: false,
+        onExisting: "overwrite",
+      });
+
+      const result = fs.readFileSync(resourcePath, "utf8");
+      // Should replace queries with mutations,subscriptions (since list is used)
+      expect(result).toContain(".authorization((allow) => [allow.owner()])");
+      expect(result).toContain('.secondaryIndexes((index) => [index("title")])');
+      expect(result).toContain('.disableOperations(["mutations","subscriptions"])');
+      // disableOperations should now be at the end after removal and re-addition
+      const disableIndex = result.lastIndexOf('.disableOperations(');
+      const secondaryIndex = result.lastIndexOf('.secondaryIndexes(');
+      expect(disableIndex).toBeGreaterThan(secondaryIndex);
+    });
+  });
+
   describe("edge cases", () => {
     it("should skip models that already have disableOperations", () => {
       const resourceContent = `import { a } from "@aws-amplify/backend";
