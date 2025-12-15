@@ -7,6 +7,12 @@ on:
 
 concurrency: ${{ github.workflow }}-${{ github.ref }}
 
+permissions:
+  contents: write # to create release (changesets/action)
+  issues: write # to post issue comments (changesets/action)
+  pull-requests: write # to create pull request (changesets/action) required for OIDC
+  id-token: write # to use OpenID Connect token for provenance (changesets/action)
+
 jobs:
   release:
     name: Release
@@ -19,6 +25,10 @@ jobs:
         with:
           node-version: 22
           cache: "npm"
+          registry-url: 'https://registry.npmjs.org'
+      # Ensure npm 11.5.1 or later is installed
+      - name: Update npm
+        run: npm install -g npm@latest
       - name: Install Dependencies
         run: npm ci
       - name: Create Release Pull Request or Publish to npm
