@@ -2,6 +2,8 @@
 
 A CLI tool that automatically detects and disables unused GraphQL operations in AWS Amplify Gen2 projects.
 
+- [日本語](./README.ja.md)
+
 ## Overview
 
 This tool scans TypeScript projects to identify actually used Amplify DataClient operations (query/mutation/subscription) and disables unused operations using `disableOperations()`, preventing the generation of unnecessary API endpoints.
