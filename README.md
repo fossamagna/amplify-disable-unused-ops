@@ -16,9 +16,7 @@ This tool scans TypeScript projects to identify actually used Amplify DataClient
 ## Installation
 
 ```bash
-npm install
-npm run build
-npm link
+npm add -D amplify-disable-unused-ops
 ```
 
 ## Usage
