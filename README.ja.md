@@ -16,9 +16,7 @@ AWS Amplify Gen2のプロジェクトで未使用のGraphQL操作を自動的に
 ## インストール
 
 ```bash
-npm install
-npm run build
-npm link
+npm add -D amplify-disable-unused-ops
 ```
 
 ## 使用方法
