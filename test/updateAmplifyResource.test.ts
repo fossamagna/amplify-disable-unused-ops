@@ -201,7 +201,8 @@ const schema = a.schema({
       });
 
       const result = fs.readFileSync(resourcePath, "utf8");
-      expect(result).toContain('.disableOperations(["queries","mutations"])');
+      // observeQuery requires both queries and subscriptions to be enabled, so only mutations should be disabled
+      expect(result).toContain('.disableOperations(["mutations"])');
       // disableOperations should be at the end
       const disableOpsIndex = result.indexOf('.disableOperations(');
       const authIndex = result.indexOf('.authorization(');
@@ -671,6 +672,36 @@ const schema = a.schema({
 
       const result = fs.readFileSync(resourcePath, "utf8");
       expect(result).toContain('.disableOperations(["subscriptions"])');
+    });
+
+    it("should not disable queries when only observeQuery is used", () => {
+      const resourceContent = `import { a } from "@aws-amplify/backend";
+
+const schema = a.schema({
+  Todo: a.model({
+    content: a.string(),
+  }),
+});
+`;
+      const usageContent = JSON.stringify({
+        Todo: ["observeQuery"],
+      });
+
+      fs.writeFileSync(resourcePath, resourceContent, "utf8");
+      fs.writeFileSync(usagePath, usageContent, "utf8");
+
+      applyDisableOperations({
+        resourcePath,
+        usagePath,
+        dryRun: false,
+        backup: false,
+      });
+
+      const result = fs.readFileSync(resourcePath, "utf8");
+      // observeQuery requires both queries and subscriptions to be enabled
+      expect(result).toContain('.disableOperations(["mutations"])');
+      expect(result).not.toContain('"queries"');
+      expect(result).not.toContain('"subscriptions"');
     });
   });
 });
