@@ -6,8 +6,8 @@ import * as path from "node:path";
 
 function help() {
   console.log(`Usage:
-  amplify-unused-ops scan --project tsconfig.json --out usage.json
-  amplify-unused-ops apply --resource amplify/data/resource.ts --usage usage.json [--dry-run]`);
+  amplify-disable-unused-ops scan --project tsconfig.json --out usage.json
+  amplify-disable-unused-ops apply --resource amplify/data/resource.ts --usage usage.json [--dry-run] [--on-existing overwrite|skip|merge]`);
 }
 
 const args = process.argv.slice(2);
@@ -38,11 +38,17 @@ if (cmd === "apply") {
   const resource = arg("--resource");
   const usage = arg("--usage");
   if (!resource || !usage) { help(); process.exit(1); }
+  const onExisting = arg("--on-existing") as "overwrite" | "skip" | "merge" | undefined;
+  if (onExisting && !["overwrite", "skip", "merge"].includes(onExisting)) {
+    console.error(`Invalid --on-existing value: ${onExisting}. Must be one of: overwrite, skip, merge`);
+    process.exit(1);
+  }
   applyDisableOperations({
     resourcePath: resource,
     usagePath: usage,
     dryRun: flag("--dry-run"),
-    backup: !flag("--no-backup")
+    backup: !flag("--no-backup"),
+    onExisting: onExisting
   });
   process.exit(0);
 }
