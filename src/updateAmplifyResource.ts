@@ -16,7 +16,8 @@ interface ApplyOptions {
   onExisting?: "overwrite" | "skip" | "merge";
 }
 
-const QUERY_OPS: OperationName[] = ["get", "list"];
+// observeQuery requires both queries and subscriptions to be enabled
+const QUERY_OPS: OperationName[] = ["get", "list", "observeQuery"];
 const MUTATION_OPS: OperationName[] = ["create", "update", "delete"];
 const SUBSCRIPTION_OPS: OperationName[] = [
   "onCreate",
@@ -120,9 +121,6 @@ export function applyDisableOperations(opts: ApplyOptions) {
       .replace(/^["'`](.*)["'`]$/, "$1");
     const usedOps = usageSet.get(name);
     const disableOps = buildDisableOperations(usedOps);
-    if (!disableOps.length) {
-      continue;
-    }
 
     const init = prop.getInitializer();
     if (!init) {
@@ -142,26 +140,41 @@ export function applyDisableOperations(opts: ApplyOptions) {
         const existing = extractExistingDisableOperations(init);
         if (existing) {
           const merged = mergeDisableOperations(existing, disableOps);
-          if (merged.length === 0) {
-            continue;
-          }
           const textWithoutDisable = removeDisableOperations(init);
-          const mergedArg = "[" + merged.map((op) => `"${op}"`).join(",") + "]";
-          init.replaceWithText(textWithoutDisable + `.disableOperations(${mergedArg})`);
-          console.log(`[merge] merged disableOperations for ${name}: [${merged.join(", ")}]`);
+          if (merged.length === 0) {
+            init.replaceWithText(textWithoutDisable);
+          } else {
+            const mergedArg =
+              "[" + merged.map((op) => `"${op}"`).join(",") + "]";
+            init.replaceWithText(
+              textWithoutDisable + `.disableOperations(${mergedArg})`
+            );
+          }
+          console.log(
+            `[merge] merged disableOperations for ${name}: [${merged.join(", ")}]`
+          );
         }
         continue;
       } else if (onExisting === "overwrite") {
         const textWithoutDisable = removeDisableOperations(init);
-        const disableArg = "[" + disableOps.map((op) => `"${op}"`).join(",") + "]";
-        init.replaceWithText(textWithoutDisable + `.disableOperations(${disableArg})`);
+        if (disableOps.length === 0) {
+          init.replaceWithText(textWithoutDisable);
+        } else {
+          const disableArg =
+            "[" + disableOps.map((op) => `"${op}"`).join(",") + "]";
+          init.replaceWithText(
+            textWithoutDisable + `.disableOperations(${disableArg})`
+          );
+        }
         console.log(`[overwrite] replaced disableOperations for ${name}`);
         continue;
       }
     }
 
-    const disableArg = "[" + disableOps.map((op) => `"${op}"`).join(",") + "]";
-    init.replaceWithText(init.getText() + `.disableOperations(${disableArg})`);
+    if (disableOps.length !== 0) {
+      const disableArg = "[" + disableOps.map((op) => `"${op}"`).join(",") + "]";
+      init.replaceWithText(init.getText() + `.disableOperations(${disableArg})`);
+    }
   }
 
   if (dryRun) {
