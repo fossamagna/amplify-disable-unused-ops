@@ -315,4 +315,48 @@ describe("scanAmplifyUsage", () => {
       });
     });
   });
+
+  describe("tsconfig paths usage", () => {
+    it("should detect operations with path mappings (@/lib/*, @/services/*)", () => {
+      const tsconfigPath = path.join(
+        __dirname,
+        "fixtures",
+        "tsconfig-paths",
+        "tsconfig.json"
+      );
+      const result = scanAmplifyUsage({ tsconfigPath });
+
+      expect(result).toEqual({
+        Todo: ["create", "list"],
+        Post: ["delete", "get", "update"],
+      });
+    });
+
+    it("should detect operations from specific service using path mappings", () => {
+      const tsconfigPath = path.join(
+        __dirname,
+        "fixtures",
+        "tsconfig-paths",
+        "tsconfig.json"
+      );
+      const includeGlobs = [
+        posix.join(
+          toPosixPath(__dirname),
+          "fixtures/tsconfig-paths/lib/amplify-client.ts"
+        ),
+        posix.join(
+          toPosixPath(__dirname),
+          "fixtures/tsconfig-paths/services/todo-service.ts"
+        ),
+      ];
+      const result = scanAmplifyUsage({
+        tsconfigPath,
+        includeGlobs,
+      });
+
+      expect(result).toEqual({
+        Todo: ["create", "list"],
+      });
+    });
+  });
 });
