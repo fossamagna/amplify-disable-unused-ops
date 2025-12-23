@@ -1,4 +1,4 @@
-import { Project, Node, SourceFile } from "ts-morph";
+import { Project, Node, SourceFile, TypeNode } from "ts-morph";
 export type OperationName =
   | "get"
   | "list"
@@ -21,6 +21,12 @@ interface ExportedClient {
   localName: string;
   exportedName: string;
   type: 'variable' | 'function';
+}
+
+function isV6ClientType(typeNode: TypeNode): boolean {
+  const text = typeNode.getType().getText();
+  // Check if the type text includes "V6Client"
+  return text.includes("V6Client");
 }
 
 export function scanAmplifyUsage(options: ScanOptions): UsageMap {
@@ -144,6 +150,13 @@ export function scanAmplifyUsage(options: ScanOptions): UsageMap {
             if (Node.isIdentifier(nameNode)) clientVars.add(nameNode.getText());
           }
         }
+        
+        // Also check if the variable is declared with V6Client<Schema> type
+        const typeNode = node.getTypeNode();
+        if (typeNode && isV6ClientType(typeNode)) {
+          const nameNode = node.getNameNode();
+          if (Node.isIdentifier(nameNode)) clientVars.add(nameNode.getText());
+        }
       }
     });
     
@@ -152,6 +165,21 @@ export function scanAmplifyUsage(options: ScanOptions): UsageMap {
       if (Node.isFunctionDeclaration(node) && functionReturnsGenerateClient(node)) {
         const name = node.getName();
         if (name) clientFunctions.add(name);
+      }
+    });
+    
+    // Find function parameters with V6Client type
+    sf.forEachDescendant((node) => {
+      if (Node.isFunctionDeclaration(node) || Node.isArrowFunction(node) || Node.isFunctionExpression(node)) {
+        for (const param of node.getParameters()) {
+          const typeNode = param.getTypeNode();
+          if (typeNode && isV6ClientType(typeNode)) {
+            const nameNode = param.getNameNode();
+            if (Node.isIdentifier(nameNode)) {
+              clientVars.add(nameNode.getText());
+            }
+          }
+        }
       }
     });
 

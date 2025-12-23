@@ -250,4 +250,69 @@ describe("scanAmplifyUsage", () => {
       expect(result.Post).toContain("create");
     });
   });
+
+  describe("V6Client type usage", () => {
+    it("should detect operations on V6Client<Schema> typed variables", () => {
+      const tsconfigPath = path.join(
+        __dirname,
+        "fixtures",
+        "v6client-type",
+        "tsconfig.json"
+      );
+      const includeGlobs = [
+        posix.join(
+          toPosixPath(__dirname),
+          "fixtures/v6client-type/variable-usage.ts"
+        ),
+      ];
+      const result = scanAmplifyUsage({
+        tsconfigPath,
+        includeGlobs,
+      });
+
+      expect(result).toEqual({
+        Todo: ["list"],
+        Post: ["create"],
+      });
+    });
+
+    it("should detect operations on V6Client<Schema> typed parameters", () => {
+      const tsconfigPath = path.join(
+        __dirname,
+        "fixtures",
+        "v6client-type",
+        "tsconfig.json"
+      );
+      const includeGlobs = [
+        posix.join(
+          toPosixPath(__dirname),
+          "fixtures/v6client-type/parameter-usage.ts"
+        ),
+      ];
+      const result = scanAmplifyUsage({
+        tsconfigPath,
+        includeGlobs,
+      });
+
+      expect(result).toEqual({
+        Todo: ["delete", "observeQuery"],
+        Post: ["update"],
+      });
+    });
+
+    it("should detect all operations across V6Client typed files", () => {
+      const tsconfigPath = path.join(
+        __dirname,
+        "fixtures",
+        "v6client-type",
+        "tsconfig.json"
+      );
+      const result = scanAmplifyUsage({ tsconfigPath });
+
+      expect(result).toEqual({
+        Todo: ["delete", "list", "observeQuery"],
+        Post: ["create", "update"],
+      });
+    });
+  });
 });
