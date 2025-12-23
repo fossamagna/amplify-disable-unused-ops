@@ -205,4 +205,49 @@ describe("scanAmplifyUsage", () => {
       expect(result.Todo).toContain("get");
     });
   });
+
+  describe("function client usage", () => {
+    it("should detect operations using client returned from function", () => {
+      const tsconfigPath = path.join(
+        __dirname,
+        "fixtures",
+        "function-client",
+        "tsconfig.json"
+      );
+      const result = scanAmplifyUsage({ tsconfigPath });
+
+      expect(result).toEqual({
+        Todo: ["list"],
+        Post: ["create"],
+      });
+    });
+
+    it("should handle async function calls with await", () => {
+      const tsconfigPath = path.join(
+        __dirname,
+        "fixtures",
+        "function-client",
+        "tsconfig.json"
+      );
+      const includeGlobs = [
+        posix.join(
+          toPosixPath(__dirname),
+          "fixtures/function-client/amplify-client.ts"
+        ),
+        posix.join(
+          toPosixPath(__dirname),
+          "fixtures/function-client/service.ts"
+        ),
+      ];
+      const result = scanAmplifyUsage({
+        tsconfigPath,
+        includeGlobs,
+      });
+
+      expect(result.Todo).toBeDefined();
+      expect(result.Todo).toContain("list");
+      expect(result.Post).toBeDefined();
+      expect(result.Post).toContain("create");
+    });
+  });
 });
